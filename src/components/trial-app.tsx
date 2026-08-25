@@ -48,6 +48,7 @@ const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toStrin
 const money = (value: number) => `¥${value.toFixed(2)}`;
 
 function ProductVisual({ campaign, compact = false }: { campaign: Campaign; compact?: boolean }) {
+  const isNewProduct = !["bakery", "tea", "snack"].includes(campaign.category);
   return (
     <div className={`product-visual ${campaign.category} ${compact ? "compact" : ""}`} style={{ "--accent": campaign.accent } as React.CSSProperties}>
       <div className="art-orbit" />
@@ -55,6 +56,7 @@ function ProductVisual({ campaign, compact = false }: { campaign: Campaign; comp
       {campaign.category === "bakery" && <div className="cake-box"><span>鲜奶</span><i /><i /><i /></div>}
       {campaign.category === "tea" && <div className="tea-bottle"><span>桂花<br />乌龙</span><i /></div>}
       {campaign.category === "snack" && <div className="snack-bag"><span>海风<br /><b>脆</b></span><i /></div>}
+      {isNewProduct && <div className="new-product-pack"><span>{campaign.visualLabel?.split("\n").map((line) => <b key={line}>{line}</b>)}</span><i /></div>}
       {!compact && <small>{campaign.brand} · NEW SAMPLE</small>}
     </div>
   );
@@ -370,7 +372,7 @@ function Discover({ campaigns: items, onSelect }: { campaigns: Campaign[]; onSel
     <>
       <section className="hero page-width">
         <div className="hero-copy">
-          <span className="eyebrow"><Sparkles size={15} /> NEW / 08.24</span>
+          <span className="eyebrow"><Sparkles size={15} /> NEW / 08.25</span>
           <h1>先认真试用，<br /><em>再认真说。</em></h1>
           <p>品牌把还没定型的新品交给你。你先正常购买，按规则完成真实反馈，审核通过后返还试用款。</p>
           <button className="primary-button" onClick={() => document.getElementById("campaigns")?.scrollIntoView({ behavior: "smooth" })}>看看本期新品 <ArrowRight size={18} /></button>
@@ -394,20 +396,23 @@ function Discover({ campaigns: items, onSelect }: { campaigns: Campaign[]; onSel
       </section>
       <section className="campaign-section page-width" id="campaigns">
         <div className="section-heading">
-          <div><span className="eyebrow">本期开放申请</span><h2>正在找首批体验官</h2></div>
-          <p>不看粉丝数，只看你是不是合适的人。</p>
+          <div><span className="eyebrow">新品试用计划</span><h2>正在开放与筹备的新品</h2></div>
+          <p>7 款新品已加入，到样进度会持续更新。</p>
         </div>
         <div className="campaign-grid">
           {items.map((campaign, index) => (
             <article className="campaign-card" key={campaign.id} onClick={() => onSelect(campaign)}>
               <ProductVisual campaign={campaign} />
               <div className="card-body">
-                <div className="card-meta"><span>{campaign.brand}</span><small>{index === 0 ? "3 天后截止" : campaign.deadline}</small></div>
+                <div className="card-meta"><span>{campaign.brand}</span><small>{campaign.launchStatus === "preparing" ? "拍摄样筹备中" : campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
                 <h3>{campaign.title}</h3>
                 <p>{campaign.subtitle}</p>
-                <div className="refund-line"><small>完成反馈后预计返还</small><strong>{money(campaign.refundAmount)}</strong></div>
-                <div className="card-progress"><i style={{ width: `${Math.min(92, campaign.applications / campaign.quota * 40)}%` }} /><span>{campaign.quota} 份 · {campaign.applications.toLocaleString()} 人申请</span></div>
-                <button>查看试用规则 <ChevronRight size={17} /></button>
+                {campaign.launchStatus === "preparing" ? (
+                  <><div className="sample-status"><small>最新到样进度</small><strong>{campaign.sampleStatus?.at(-1)}</strong></div><div className="card-progress preparing"><i /><span>试用价格与名额待确认</span></div></>
+                ) : (
+                  <><div className="refund-line"><small>完成反馈后预计返还</small><strong>{money(campaign.refundAmount)}</strong></div><div className="card-progress"><i style={{ width: `${Math.min(92, campaign.applications / campaign.quota * 40)}%` }} /><span>{campaign.quota} 份 · {campaign.applications.toLocaleString()} 人申请</span></div></>
+                )}
+                <button>{campaign.launchStatus === "preparing" ? "查看到样进度" : "查看试用规则"} <ChevronRight size={17} /></button>
               </div>
             </article>
           ))}
@@ -431,13 +436,13 @@ function CampaignDetail({ campaign, onBack, onApply, alreadyApplied }: { campaig
       <div className="detail-hero">
         <ProductVisual campaign={campaign} />
         <div className="detail-copy">
-          <span className="brand-kicker">{campaign.brand} · 新品首发</span>
+          <span className="brand-kicker">{campaign.brand} · {campaign.launchStatus === "preparing" ? "新品筹备" : "新品首发"}</span>
           <h1>{campaign.title}</h1>
           <p>{campaign.subtitle}</p>
-          <div className="price-block"><span>商品价格 <b>{money(campaign.price)}</b></span><i /><span>预计返还 <strong>{money(campaign.refundAmount)}</strong></span></div>
-          <div className="clarity-note"><ShieldCheck size={21} /><p><b>先付款试用</b>完成规定反馈并经审核通过后，返还对应试用款。</p></div>
-          <button className="primary-button wide" onClick={onApply} disabled={alreadyApplied}>{alreadyApplied ? "已申请，可在我的试用查看" : "申请试用"}<ArrowRight size={18} /></button>
-          <small className="deadline-note"><Clock3 size={14} />申请截止：{campaign.deadline} · 共 {campaign.quota} 个名额</small>
+          {campaign.launchStatus === "preparing" ? <div className="detail-sample-status"><small>拍摄样状态</small>{campaign.sampleStatus?.map((item) => <span key={item}><CheckCircle2 size={16} />{item}</span>)}</div> : <div className="price-block"><span>商品价格 <b>{money(campaign.price)}</b></span><i /><span>预计返还 <strong>{money(campaign.refundAmount)}</strong></span></div>}
+          <div className="clarity-note"><ShieldCheck size={21} /><p>{campaign.launchStatus === "preparing" ? <><b>当前仅展示筹备进度</b>试用价格、名额和正式规则确认后再开放申请。</> : <><b>先付款试用</b>完成规定反馈并经审核通过后，返还对应试用款。</>}</p></div>
+          <button className="primary-button wide" onClick={onApply} disabled={alreadyApplied || campaign.launchStatus === "preparing"}>{campaign.launchStatus === "preparing" ? "样品筹备中，暂未开放申请" : alreadyApplied ? "已申请，可在我的试用查看" : "申请试用"}{campaign.launchStatus !== "preparing" && <ArrowRight size={18} />}</button>
+          <small className="deadline-note"><Clock3 size={14} />{campaign.launchStatus === "preparing" ? campaign.deadline : `申请截止：${campaign.deadline} · 共 ${campaign.quota} 个名额`}</small>
         </div>
       </div>
       <div className="rule-layout">

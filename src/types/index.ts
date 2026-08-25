@@ -28,7 +28,7 @@ export interface Campaign {
   brand: string;
   title: string;
   subtitle: string;
-  category: "bakery" | "tea" | "snack";
+  category: "bakery" | "tea" | "snack" | "roujiamo" | "saqima" | "cracker" | "hawthorn" | "soup" | "dumpling" | "beer";
   price: number;
   refundAmount: number;
   quota: number;
@@ -37,6 +37,9 @@ export interface Campaign {
   feedbackDays: number;
   accent: string;
   requirements: string[];
+  launchStatus?: "open" | "preparing";
+  sampleStatus?: string[];
+  visualLabel?: string;
 }
 
 export interface Feedback {

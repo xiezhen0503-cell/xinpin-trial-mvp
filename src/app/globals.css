@@ -82,6 +82,13 @@ h1, h2, h3, p { margin-top: 0; }
 .product-visual.bakery { background: #f2d7c8; }
 .product-visual.tea { background: #e8dfba; }
 .product-visual.snack { background: #cde1dc; }
+.product-visual.roujiamo { background: #efd4be; }
+.product-visual.saqima { background: #f8e3a8; }
+.product-visual.cracker { background: #d9c0a4; }
+.product-visual.hawthorn { background: #f0c4b9; }
+.product-visual.soup { background: #c7ded4; }
+.product-visual.dumpling { background: #d4e4c8; }
+.product-visual.beer { background: #cce9e8; }
 .product-visual > small { position: absolute; left: 18px; top: 17px; font-size: 9px; letter-spacing: .15em; font-weight: 800; opacity: .65; }
 .art-orbit { position: absolute; width: 220px; height: 220px; border: 1px solid rgba(255,255,255,.6); border-radius: 50%; }
 .art-orbit::after { content: ""; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.8); top: 20px; right: 25px; }
@@ -100,11 +107,24 @@ h1, h2, h3, p { margin-top: 0; }
 .snack-bag span { color: var(--green); font-size: 19px; text-align: center; font-weight: 700; }
 .snack-bag b { font-size: 45px; line-height: 1; }
 .snack-bag i { position: absolute; width: 34px; height: 34px; right: 15px; bottom: 28px; background: #1f6f5e; border-radius: 50% 5px 50% 5px; transform: rotate(25deg); }
+.new-product-pack { width: 142px; height: 174px; border-radius: 18px 18px 13px 13px; background: rgba(255,255,255,.86); border: 2px solid rgba(255,255,255,.78); box-shadow: 0 20px 34px rgba(45,55,49,.2); position: relative; transform: rotate(-3deg); display: grid; place-items: center; text-align: center; overflow: hidden; }
+.new-product-pack::before { content: "尖锋食客"; position: absolute; top: 13px; font-size: 9px; font-weight: 800; letter-spacing: .16em; color: var(--accent); }
+.new-product-pack span { display: grid; gap: 4px; color: var(--accent); font-size: 19px; line-height: 1.25; padding: 22px 12px 0; }
+.new-product-pack i { position: absolute; width: 74px; height: 10px; border-radius: 50%; background: var(--accent); opacity: .22; bottom: 20px; }
+.product-visual.roujiamo .new-product-pack { width: 160px; height: 118px; border-radius: 50% 50% 18px 18px; }
+.product-visual.saqima .new-product-pack { background: rgba(255,248,218,.9); border-radius: 8px; }
+.product-visual.cracker .new-product-pack { width: 178px; height: 112px; background: #342f2c; }
+.product-visual.cracker .new-product-pack span, .product-visual.cracker .new-product-pack::before { color: #f2bd78; }
+.product-visual.hawthorn .new-product-pack { width: 94px; height: 188px; border-radius: 48px 48px 20px 20px; }
+.product-visual.soup .new-product-pack { border-radius: 22px 22px 50% 50%; }
+.product-visual.dumpling .new-product-pack { width: 175px; height: 115px; border-radius: 18px 18px 55% 55%; }
+.product-visual.beer .new-product-pack { width: 82px; height: 190px; border-radius: 15px 15px 22px 22px; }
 .product-visual.compact { width: 94px; height: 94px; flex: 0 0 94px; border-radius: 16px; }
 .product-visual.compact .art-orbit { width: 80px; height: 80px; }.product-visual.compact .art-shadow { width: 60px; height: 14px; bottom: 12px; }
 .product-visual.compact .cake-box { width: 49px; height: 49px; border-radius: 8px; border-top-width: 4px; }.product-visual.compact .cake-box span { font-size: 9px; }.product-visual.compact .cake-box i { display: none; }
 .product-visual.compact .tea-bottle { width: 33px; height: 60px; border-radius: 10px; border-width: 1px; }.product-visual.compact .tea-bottle::before { width: 16px; height: 8px; top: -6px; }.product-visual.compact .tea-bottle span { width: 25px; font-size: 5px; padding: 5px 1px; }.product-visual.compact .tea-bottle i { display: none; }
 .product-visual.compact .snack-bag { width: 45px; height: 60px; }.product-visual.compact .snack-bag span { font-size: 6px; }.product-visual.compact .snack-bag b { font-size: 14px; }.product-visual.compact .snack-bag i { width: 10px; height: 10px; right: 5px; bottom: 10px; }
+.product-visual.compact .new-product-pack { width: 43px; height: 58px; border-radius: 7px; }.product-visual.compact .new-product-pack::before { display: none; }.product-visual.compact .new-product-pack span { font-size: 6px; gap: 1px; padding: 0 3px; }.product-visual.compact .new-product-pack i { width: 22px; height: 4px; bottom: 6px; }
 .card-body { padding: 23px 23px 20px; }
 .card-meta { display: flex; justify-content: space-between; align-items: center; color: var(--green); font-size: 12px; font-weight: 700; }
 .card-meta small { color: var(--coral); font-weight: 700; }
@@ -112,8 +132,15 @@ h1, h2, h3, p { margin-top: 0; }
 .card-body > p { color: var(--muted); font-size: 13px; min-height: 40px; line-height: 1.55; }
 .refund-line { border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; margin: 19px 0; }
 .refund-line small { color: var(--muted); }.refund-line strong { color: var(--coral); font-size: 20px; }
+.sample-status { border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 13px 0; display: grid; gap: 5px; margin: 19px 0; }
+.sample-status small { color: var(--muted); }.sample-status strong { color: var(--green); font-size: 13px; }
+.detail-sample-status { display: grid; gap: 9px; padding: 18px; margin: 24px 0 16px; border: 1px solid #cfe0d7; border-radius: 14px; background: var(--green-soft); }
+.detail-sample-status small { color: var(--green); font-weight: 800; letter-spacing: .08em; }
+.detail-sample-status span { display: flex; align-items: center; gap: 8px; color: #40584d; font-size: 13px; }
+.detail-sample-status svg { color: var(--green); flex: 0 0 auto; }
 .card-progress { height: 5px; background: #edf1ed; border-radius: 5px; position: relative; margin-bottom: 24px; }
 .card-progress i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--green); }
+.card-progress.preparing i { width: 38%; background: linear-gradient(90deg, var(--accent), #8db8a8); }
 .card-progress span { position: absolute; left: 0; top: 10px; color: var(--muted); font-size: 10px; }
 .card-body > button { width: 100%; border: 0; background: none; display: flex; justify-content: space-between; align-items: center; font-weight: 700; padding: 10px 0 0; cursor: pointer; }
 .how-it-works { padding: 90px 70px; background: #e4eee8; border-radius: 36px; margin-bottom: 110px; display: grid; grid-template-columns: .9fr 1.1fr; gap: 100px; }
