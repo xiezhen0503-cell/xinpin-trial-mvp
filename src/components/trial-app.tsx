@@ -147,6 +147,7 @@ export function TrialApp() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [applying, setApplying] = useState(false);
   const [feedbackTarget, setFeedbackTarget] = useState<Participation | null>(null);
+  const [remindedCampaigns, setRemindedCampaigns] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -161,12 +162,34 @@ export function TrialApp() {
     if (hydrated) window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [state, hydrated]);
 
+  useEffect(() => {
+    if (!selectedCampaign) return;
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedCampaign]);
+
   const myParticipations = useMemo(() => state.participations.filter((item) => item.userId === currentUser), [state.participations]);
   const pendingApplications = state.participations.filter((item) => item.status === "under_review");
   const pendingFeedback = state.participations.filter((item) => ["feedback_submitted", "feedback_resubmitted"].includes(item.status));
   const exceptions = state.participations.filter((item) => item.status === "refund_failed");
 
   const notify = (message: string) => setToast(message);
+
+  const scrollToPageTop = () => window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+
+  const openCampaign = (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+  };
+
+  const closeCampaign = () => {
+    setSelectedCampaign(null);
+    window.requestAnimationFrame(() => document.getElementById("campaigns")?.scrollIntoView({ block: "start" }));
+  };
+
+  const remindCampaign = (campaign: Campaign) => {
+    setRemindedCampaigns((current) => current.includes(campaign.id) ? current : [...current, campaign.id]);
+    notify(`已订阅「${campaign.title}」开放提醒`);
+  };
 
   const replaceParticipation = (updated: Participation, events = state.events) => {
     setState((current) => ({ ...current, participations: current.participations.map((item) => item.id === updated.id ? updated : item), events }));
@@ -217,6 +240,7 @@ export function TrialApp() {
     setApplying(false);
     setSelectedCampaign(null);
     setConsumerTab("mine");
+    scrollToPageTop();
     notify("申请已提交，商家审核结果会在这里显示");
   };
 
@@ -303,9 +327,9 @@ export function TrialApp() {
           <ConsumerHeader role={role} setRole={setRole} unread={state.notifications.filter((item) => !item.read).length} onNotice={() => setConsumerTab("notifications")} />
           <main className="consumer-main">
             {selectedCampaign ? (
-              <CampaignDetail campaign={selectedCampaign} onBack={() => setSelectedCampaign(null)} onApply={() => setApplying(true)} alreadyApplied={state.participations.some((item) => item.userId === currentUser && item.campaignId === selectedCampaign.id)} />
+              <CampaignDetail campaign={selectedCampaign} onBack={closeCampaign} onApply={() => setApplying(true)} onRemind={() => remindCampaign(selectedCampaign)} alreadyApplied={state.participations.some((item) => item.userId === currentUser && item.campaignId === selectedCampaign.id)} reminded={remindedCampaigns.includes(selectedCampaign.id)} />
             ) : consumerTab === "discover" ? (
-              <Discover campaigns={campaigns} onSelect={setSelectedCampaign} />
+              <Discover campaigns={campaigns} onSelect={openCampaign} onRemind={remindCampaign} remindedCampaigns={remindedCampaigns} />
             ) : consumerTab === "mine" ? (
               <MyTrials participations={myParticipations} onFeedback={setFeedbackTarget} />
             ) : (
@@ -355,69 +379,98 @@ function ConsumerHeader({ role, setRole, unread, onNotice }: { role: Role; setRo
   );
 }
 
-function Discover({ campaigns: items, onSelect }: { campaigns: Campaign[]; onSelect: (campaign: Campaign) => void }) {
+const trialReports = [
+  { name: "林小雨", product: "烘烤海苔脆片", score: "4.8", quote: "脆度很干净，海苔香先出来，甜味如果再收一点会更耐吃。", tags: ["脆", "海苔香", "少油"] },
+  { name: "周元青", product: "鲜奶小蛋糕", score: "4.6", quote: "早餐场景很合适，入口柔软，独立包装比想象中方便。", tags: ["柔软", "奶香", "早餐"] },
+  { name: "李知夏", product: "冷泡桂花乌龙", score: "4.7", quote: "桂花香不冲，冰过之后回甘更清楚，适合办公室慢慢喝。", tags: ["清香", "回甘", "低甜"] },
+];
+
+function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: { campaigns: Campaign[]; onSelect: (campaign: Campaign) => void; onRemind: (campaign: Campaign) => void; remindedCampaigns: string[] }) {
+  const openCampaigns = items.filter((campaign) => campaign.launchStatus === "open").sort((a, b) => Number(b.trialMode === "free") - Number(a.trialMode === "free"));
+  const preparingCampaigns = items.filter((campaign) => campaign.launchStatus === "preparing");
+  const freeCount = openCampaigns.filter((campaign) => campaign.trialMode === "free").length;
   return (
     <>
-      <section className="hero page-width">
+      <section className="hero editorial-hero page-width">
         <div className="hero-copy">
-          <span className="eyebrow"><Sparkles size={15} /> NEW / 08.25</span>
-          <h1>先认真试用，<br /><em>再认真说。</em></h1>
-          <p>品牌把还没定型的新品交给你。申请通过后免费领取，少数高成本样品仅收象征性体验价；认真试吃，再留下真实反馈。</p>
-          <button className="primary-button" onClick={() => document.getElementById("campaigns")?.scrollIntoView({ behavior: "smooth" })}>看看本期新品 <ArrowRight size={18} /></button>
+          <span className="eyebrow"><Sparkles size={15} /> 今日试吃编辑部</span>
+          <div className="live-summary"><i />今天有 <b>{openCampaigns.length}</b> 款可以申请，其中 <b>{freeCount}</b> 款免费</div>
+          <h1>新品先给你尝，<br /><em>真话留给我们。</em></h1>
+          <p>不是抢券，也不用原价购买。选一款真正想试的，认真吃完，再把具体感受告诉品牌。</p>
+          <button className="primary-button" onClick={() => document.getElementById("campaigns")?.scrollIntoView({ behavior: "smooth" })}>领取今日通行证 <ArrowRight size={18} /></button>
         </div>
-        <div className="hero-ticket" aria-label="试用流程凭证">
-          <div className="ticket-top"><span>TRIAL PASS</span><b>NO. 0824</b></div>
-          <div className="ticket-core">
-            <small>免费为主 · 低价为辅</small>
-            <strong>降低门槛，<br />留下真话</strong>
-            <div className="ticket-route"><span>申请</span><i /><span>领取</span><i /><span>试吃</span><i /><span>反馈</span></div>
-          </div>
-          <div className="ticket-foot"><ShieldCheck size={18} /><span>无需原价购买 · 资格一人一份</span></div>
+        <div className="hero-ticket passport-card" aria-label={`今日有 ${openCampaigns.length} 款试用开放`}>
+          <div className="passport-code"><span>TRIAL PASS</span><b>NO. 0825</b></div>
+          <div className="passport-main"><div><small>TODAY&apos;S DROP</small><strong>{openCampaigns.length}<i>款开放</i></strong><p>{freeCount} 款免费 · 一人一份</p></div><div className="passport-stamp"><span>新品</span><b>试吃</b><small>VERIFIED</small></div></div>
+          <div className="passport-route"><span>申请</span><i /><span>领取</span><i /><span>试吃</span><i /><span>反馈</span></div>
         </div>
       </section>
       <section className="trust-band">
         <div className="page-width">
-          <span><BadgeCheck size={19} />每个名额对应专属资格</span>
-          <span><PackageCheck size={19} />签收后才开始计算反馈期</span>
-          <span><WalletCards size={19} />免费领取或 1–9.9 元体验</span>
+          <span><BadgeCheck size={19} />资格一人一份</span>
+          <span><PackageCheck size={19} />签收后再计时</span>
+          <span><WalletCards size={19} />免费或 1–9.9 元</span>
         </div>
       </section>
-      <section className="campaign-section page-width" id="campaigns">
+
+      <section className="campaign-section open-trials page-width" id="campaigns">
         <div className="section-heading">
-          <div><span className="eyebrow">新品试用计划</span><h2>正在开放与筹备的新品</h2></div>
-          <p>7 款新品已加入，到样进度会持续更新。</p>
+          <div><span className="eyebrow">NOW TASTING</span><h2>现在可以申请</h2></div>
+          <p>先看想不想吃，再看是否适合你。</p>
         </div>
-        <div className="campaign-grid">
-          {items.map((campaign, index) => (
-            <article className="campaign-card" key={campaign.id} onClick={() => onSelect(campaign)}>
-              <ProductVisual campaign={campaign} />
+        <div className="open-campaign-rail">
+          {openCampaigns.map((campaign) => (
+            <article className="campaign-card open-campaign-card" key={campaign.id} onClick={() => onSelect(campaign)}>
+              <div className="open-card-visual"><ProductVisual campaign={campaign} /><span className={`offer-badge ${campaign.trialMode}`}>{trialOffer(campaign)}</span></div>
               <div className="card-body">
-                <div className="card-meta"><span>{campaign.brand}</span><small>{campaign.launchStatus === "preparing" ? "拍摄样筹备中" : campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
+                <div className="card-meta"><span>{campaign.brand}</span><small>{campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
                 <h3>{campaign.title}</h3>
                 <p>{campaign.subtitle}</p>
-                {campaign.launchStatus === "preparing" ? (
-                  <><div className="sample-status"><small>最新到样进度</small><strong>{campaign.sampleStatus?.at(-1)}</strong></div><div className="card-progress preparing"><i /><span>免费或低价方案与名额待确认</span></div></>
-                ) : (
-                  <><div className="refund-line"><small>{campaign.trialMode === "free" ? "本次试用无需付款" : "象征性体验价"}</small><strong>{trialOffer(campaign)}</strong></div><div className="card-progress"><i style={{ width: `${Math.min(92, campaign.applications / campaign.quota * 40)}%` }} /><span>{campaign.quota} 份 · {campaign.applications.toLocaleString()} 人申请</span></div></>
-                )}
-                <button>{campaign.launchStatus === "preparing" ? "查看到样进度" : "查看试用规则"} <ChevronRight size={17} /></button>
+                <div className="open-card-stats"><span><b>{campaign.quota}</b> 份名额</span><i /><span><b>{campaign.applications.toLocaleString()}</b> 人申请</span></div>
+                <button>查看试用规则 <ChevronRight size={17} /></button>
               </div>
             </article>
           ))}
         </div>
       </section>
-      <section className="how-it-works page-width">
-        <div><span className="eyebrow">一次完整试用</span><h2>你会清楚知道，<br />自己走到了哪一步。</h2></div>
-        <div className="process-list">
-          {["提交申请，等待品牌审核", "获得资格，免费领取或体验价下单", "签收后完成结构化真实反馈", "反馈通过，本次试用正式完成"].map((text, index) => <div key={text}><span>0{index + 1}</span><p>{text}</p></div>)}
+
+      <section className="upcoming-section page-width">
+        <div className="section-heading compact-heading">
+          <div><span className="eyebrow">COMING SOON</span><h2>下一批，正在到样</h2></div>
+          <p>想试的先设提醒，开放时不必再回来翻找。</p>
         </div>
+        <div className="upcoming-grid">
+          {preparingCampaigns.map((campaign) => {
+            const reminded = remindedCampaigns.includes(campaign.id);
+            return (
+              <article className="campaign-card upcoming-card" key={campaign.id} onClick={() => onSelect(campaign)}>
+                <ProductVisual campaign={campaign} />
+                <div className="upcoming-card-body"><span className="prep-chip">到样确认中</span><h3>{campaign.title}</h3><p>{campaign.sampleStatus?.at(-1)}</p><button disabled={reminded} onClick={(event) => { event.stopPropagation(); onRemind(campaign); }}>{reminded ? <><BadgeCheck size={15} />已提醒</> : <><Bell size={15} />提醒开放</>}</button></div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="report-section page-width">
+        <div className="section-heading compact-heading"><div><span className="eyebrow">TASTE NOTES</span><h2>大家刚试完</h2></div><p>不只给分数，要说清楚为什么。</p></div>
+        <div className="report-grid">{trialReports.map((report) => <article className="report-card" key={report.product}><div className="report-person"><span>{report.name.slice(0, 1)}</span><div><b>{report.name}</b><small>{report.product}</small></div><strong><Star size={14} fill="currentColor" />{report.score}</strong></div><blockquote>“{report.quote}”</blockquote><div>{report.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div></article>)}</div>
+      </section>
+
+      <section className="how-it-works page-width compact-process">
+        <div><span className="eyebrow">一张试吃护照</span><h2>每一步都清楚，<br />每次认真都有记录。</h2></div>
+        <div className="process-list">{["提交申请", "获得资格并领取", "签收后认真试吃", "反馈通过，护照盖章"].map((text, index) => <div key={text}><span>0{index + 1}</span><p>{text}</p></div>)}</div>
       </section>
     </>
   );
 }
 
-function CampaignDetail({ campaign, onBack, onApply, alreadyApplied }: { campaign: Campaign; onBack: () => void; onApply: () => void; alreadyApplied: boolean }) {
+function CampaignDetail({ campaign, onBack, onApply, onRemind, alreadyApplied, reminded }: { campaign: Campaign; onBack: () => void; onApply: () => void; onRemind: () => void; alreadyApplied: boolean; reminded: boolean }) {
   const flow = ["申请", "资格", "领取", "发货", "签收", "试用", "反馈", "完成"];
+  const preparing = campaign.launchStatus === "preparing";
+  const primaryLabel = preparing ? reminded ? "已设置开放提醒" : "提醒我开放" : alreadyApplied ? "已申请，可在我的试用查看" : `${trialOffer(campaign)} · 申请试用`;
+  const primaryAction = preparing ? onRemind : onApply;
+  const primaryDisabled = preparing ? reminded : alreadyApplied;
   return (
     <div className="detail-page page-width">
       <button className="back-button" onClick={onBack}><ArrowLeft size={18} /> 返回全部试用</button>
@@ -429,7 +482,7 @@ function CampaignDetail({ campaign, onBack, onApply, alreadyApplied }: { campaig
           <p>{campaign.subtitle}</p>
           {campaign.launchStatus === "preparing" ? <div className="detail-sample-status"><small>拍摄样状态</small>{campaign.sampleStatus?.map((item) => <span key={item}><CheckCircle2 size={16} />{item}</span>)}</div> : <div className="price-block"><span>试用方式 <b>{campaign.trialMode === "free" ? "免费领取" : "低价体验"}</b></span><i /><span>用户支付 <strong>{campaign.trialMode === "free" ? "¥0" : money(campaign.price)}</strong></span></div>}
           <div className="clarity-note"><ShieldCheck size={21} /><p>{campaign.launchStatus === "preparing" ? <><b>当前仅展示筹备进度</b>免费或低价方案、名额和正式规则确认后再开放申请。</> : <><b>{trialOffer(campaign)}</b>审核通过后凭专属资格领取，一人一份；按期完成真实反馈即可。</>}</p></div>
-          <button className="primary-button wide" onClick={onApply} disabled={alreadyApplied || campaign.launchStatus === "preparing"}>{campaign.launchStatus === "preparing" ? "样品筹备中，暂未开放申请" : alreadyApplied ? "已申请，可在我的试用查看" : "申请试用"}{campaign.launchStatus !== "preparing" && <ArrowRight size={18} />}</button>
+          <button className="primary-button wide desktop-detail-action" onClick={primaryAction} disabled={primaryDisabled}>{preparing ? <Bell size={18} /> : null}{primaryLabel}{!preparing && <ArrowRight size={18} />}</button>
           <small className="deadline-note"><Clock3 size={14} />{campaign.launchStatus === "preparing" ? campaign.deadline : `申请截止：${campaign.deadline} · 共 ${campaign.quota} 个名额`}</small>
         </div>
       </div>
@@ -447,6 +500,7 @@ function CampaignDetail({ campaign, onBack, onApply, alreadyApplied }: { campaig
         </section>
         <aside className="rule-aside"><ShieldCheck size={26} /><h3>你的每一步都有记录</h3><p>申请、资格、领取、物流和反馈都进入同一条流程轨道。若有争议，可回看完整时间线。</p><span>专属资格不可转让 · 一人一份</span></aside>
       </div>
+      <div className="detail-mobile-action"><div><small>{preparing ? "开放后第一时间通知" : campaign.trialMode === "free" ? "本次无需支付商品款" : "象征性体验价"}</small><b>{preparing ? campaign.title : trialOffer(campaign)}</b></div><button className="primary-button" onClick={primaryAction} disabled={primaryDisabled}>{preparing ? <Bell size={18} /> : null}{primaryLabel}</button></div>
     </div>
   );
 }
