@@ -29,13 +29,14 @@ import {
   Star,
   Truck,
   UsersRound,
-  WalletCards,
   X,
 } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { campaigns, initialState, statusLabels } from "@/lib/demo-data";
 import { runTransitions, validateRefund } from "@/lib/workflow";
 import type { AppState, Campaign, Feedback, Participation, ParticipationStatus, Role } from "@/types";
+import openTrialsFoodStrip from "../../public/images/open-trials-food-strip-v2.webp";
+import upcomingFoodGrid from "../../public/images/upcoming-food-grid-v2.webp";
 
 type ConsumerTab = "discover" | "mine" | "notifications";
 type MerchantTab = "dashboard" | "applications" | "feedback" | "events";
@@ -49,16 +50,24 @@ const money = (value: number) => `¥${value.toFixed(2)}`;
 const trialOffer = (campaign: Campaign) => campaign.trialMode === "free" ? "免费试吃" : campaign.trialMode === "low_price" ? `体验价 ${money(campaign.price)}` : "方案待确认";
 
 function ProductVisual({ campaign, compact = false }: { campaign: Campaign; compact?: boolean }) {
-  const isNewProduct = !["bakery", "tea", "snack"].includes(campaign.category);
+  const foodPhotoClasses: Record<string, string> = {
+    "seaweed-crisp": "open-food open-food-seaweed",
+    "milk-cake": "open-food open-food-cake",
+    "osmanthus-tea": "open-food open-food-tea",
+    "lazhi-roujiamo": "upcoming-food upcoming-food-roujiamo",
+    "butter-saqima": "upcoming-food upcoming-food-saqima",
+    "butter-scallion-nougat-cracker": "upcoming-food upcoming-food-cracker",
+    "prebiotic-hawthorn-stick": "upcoming-food upcoming-food-hawthorn",
+    "seaweed-shrimp-soup": "upcoming-food upcoming-food-soup",
+    "juicy-beef-dumpling": "upcoming-food upcoming-food-dumpling",
+    "melon-craft-beer": "upcoming-food upcoming-food-beer",
+  };
+  const photoClass = foodPhotoClasses[campaign.id];
+  const photoSource = campaign.launchStatus === "preparing" ? upcomingFoodGrid : openTrialsFoodStrip;
   return (
-    <div className={`product-visual ${campaign.category} ${compact ? "compact" : ""}`} style={{ "--accent": campaign.accent } as React.CSSProperties}>
-      <div className="art-orbit" />
-      <div className="art-shadow" />
-      {campaign.category === "bakery" && <div className="cake-box"><span>鲜奶</span><i /><i /><i /></div>}
-      {campaign.category === "tea" && <div className="tea-bottle"><span>桂花<br />乌龙</span><i /></div>}
-      {campaign.category === "snack" && <div className="snack-bag"><span>海风<br /><b>脆</b></span><i /></div>}
-      {isNewProduct && <div className="new-product-pack"><span>{campaign.visualLabel?.split("\n").map((line) => <b key={line}>{line}</b>)}</span><i /></div>}
-      {!compact && <small>{campaign.brand} · NEW SAMPLE</small>}
+    <div className={`product-visual food-photo-visual ${campaign.category} ${photoClass ?? ""} ${compact ? "compact" : ""}`} style={{ "--accent": campaign.accent, "--food-image": `url(${photoSource.src})` } as React.CSSProperties}>
+      <div className="food-photo-layer" role="img" aria-label={`${campaign.title}食物图`} />
+      {!compact && <small>{campaign.launchStatus === "preparing" ? "样品图 · 到样确认中" : `${campaign.brand} · 今日试吃`}</small>}
     </div>
   );
 }
@@ -164,8 +173,19 @@ export function TrialApp() {
 
   useEffect(() => {
     if (!selectedCampaign) return;
-    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
-    return () => window.cancelAnimationFrame(frame);
+    let secondFrame = 0;
+    const resetScroll = () => window.scrollTo({ top: 0, behavior: "auto" });
+    resetScroll();
+    const firstFrame = window.requestAnimationFrame(() => {
+      resetScroll();
+      secondFrame = window.requestAnimationFrame(resetScroll);
+    });
+    const settleTimer = window.setTimeout(resetScroll, 80);
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+      window.clearTimeout(settleTimer);
+    };
   }, [selectedCampaign]);
 
   const myParticipations = useMemo(() => state.participations.filter((item) => item.userId === currentUser), [state.participations]);
@@ -389,77 +409,68 @@ function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: {
   const openCampaigns = items.filter((campaign) => campaign.launchStatus === "open").sort((a, b) => Number(b.trialMode === "free") - Number(a.trialMode === "free"));
   const preparingCampaigns = items.filter((campaign) => campaign.launchStatus === "preparing");
   const freeCount = openCampaigns.filter((campaign) => campaign.trialMode === "free").length;
+  const featuredCampaign = openCampaigns.find((campaign) => campaign.trialMode === "free") ?? openCampaigns[0];
+  const moreOpenCampaigns = openCampaigns.filter((campaign) => campaign.id !== featuredCampaign?.id);
   return (
     <>
-      <section className="hero editorial-hero page-width">
-        <div className="hero-copy">
-          <span className="eyebrow"><Sparkles size={15} /> 今日试吃编辑部</span>
-          <div className="live-summary"><i />今天有 <b>{openCampaigns.length}</b> 款可以申请，其中 <b>{freeCount}</b> 款免费</div>
-          <h1>新品先给你尝，<br /><em>真话留给我们。</em></h1>
-          <p>不是抢券，也不用原价购买。选一款真正想试的，认真吃完，再把具体感受告诉品牌。</p>
-          <button className="primary-button" onClick={() => document.getElementById("campaigns")?.scrollIntoView({ behavior: "smooth" })}>领取今日通行证 <ArrowRight size={18} /></button>
-        </div>
-        <div className="hero-ticket passport-card" aria-label={`今日有 ${openCampaigns.length} 款试用开放`}>
-          <div className="passport-code"><span>TRIAL PASS</span><b>NO. 0825</b></div>
-          <div className="passport-main"><div><small>TODAY&apos;S DROP</small><strong>{openCampaigns.length}<i>款开放</i></strong><p>{freeCount} 款免费 · 一人一份</p></div><div className="passport-stamp"><span>新品</span><b>试吃</b><small>VERIFIED</small></div></div>
-          <div className="passport-route"><span>申请</span><i /><span>领取</span><i /><span>试吃</span><i /><span>反馈</span></div>
-        </div>
-      </section>
-      <section className="trust-band">
-        <div className="page-width">
-          <span><BadgeCheck size={19} />资格一人一份</span>
-          <span><PackageCheck size={19} />签收后再计时</span>
-          <span><WalletCards size={19} />免费或 1–9.9 元</span>
-        </div>
-      </section>
+      {featuredCampaign && <section className="food-home-hero page-width">
+        <article className="food-hero-card" onClick={() => onSelect(featuredCampaign)}>
+          <ProductVisual campaign={featuredCampaign} />
+          <div className="food-hero-shade" />
+          <div className="food-hero-top"><span>今日试吃桌</span><b>{openCampaigns.length} 款开放 · {freeCount} 款免费</b></div>
+          <div className="food-hero-copy">
+            <span className="free-sticker"><Sparkles size={15} /> 今日免费</span>
+            <h1>海苔脆片，<br /><em>先尝再说。</em></h1>
+            <p>{featuredCampaign.subtitle}</p>
+            <div className="food-hero-action">
+              <button className="food-primary-button" onClick={(event) => { event.stopPropagation(); onSelect(featuredCampaign); }}>免费申请 <ArrowRight size={18} /></button>
+              <span><b>{featuredCampaign.quota}</b> 份 · {featuredCampaign.applications.toLocaleString()} 人想试</span>
+            </div>
+          </div>
+        </article>
+        <div className="taste-channel" aria-label="口感频道"><b>口感频道</b>{["酥脆", "奶香", "低甜", "鲜味"].map((taste) => <span key={taste}>#{taste}</span>)}</div>
+      </section>}
 
-      <section className="campaign-section open-trials page-width" id="campaigns">
-        <div className="section-heading">
-          <div><span className="eyebrow">NOW TASTING</span><h2>现在可以申请</h2></div>
-          <p>先看想不想吃，再看是否适合你。</p>
-        </div>
-        <div className="open-campaign-rail">
-          {openCampaigns.map((campaign) => (
-            <article className="campaign-card open-campaign-card" key={campaign.id} onClick={() => onSelect(campaign)}>
-              <div className="open-card-visual"><ProductVisual campaign={campaign} /><span className={`offer-badge ${campaign.trialMode}`}>{trialOffer(campaign)}</span></div>
-              <div className="card-body">
-                <div className="card-meta"><span>{campaign.brand}</span><small>{campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
+      <section className="food-open-section page-width" id="campaigns">
+        <div className="food-section-heading"><div><span>MORE TO TASTE</span><h2>今天还能试</h2></div><p>不用原价买，挑真正想吃的。</p></div>
+        <div className="food-open-rail">
+          {moreOpenCampaigns.map((campaign) => (
+            <article className="food-open-card" key={campaign.id} onClick={() => onSelect(campaign)}>
+              <div className="food-open-photo"><ProductVisual campaign={campaign} /><span className={`food-offer-sticker ${campaign.trialMode}`}>{trialOffer(campaign)}</span></div>
+              <div className="food-open-copy">
+                <div><span>{campaign.brand}</span><small>{campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
                 <h3>{campaign.title}</h3>
                 <p>{campaign.subtitle}</p>
-                <div className="open-card-stats"><span><b>{campaign.quota}</b> 份名额</span><i /><span><b>{campaign.applications.toLocaleString()}</b> 人申请</span></div>
-                <button>查看试用规则 <ChevronRight size={17} /></button>
+                <footer><span><b>{campaign.quota}</b> 份名额</span><button>去看看 <ChevronRight size={17} /></button></footer>
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="upcoming-section page-width">
-        <div className="section-heading compact-heading">
-          <div><span className="eyebrow">COMING SOON</span><h2>下一批，正在到样</h2></div>
-          <p>想试的先设提醒，开放时不必再回来翻找。</p>
-        </div>
+      <section className="upcoming-section food-upcoming-section page-width">
+        <div className="food-section-heading"><div><span>NEXT ON TABLE</span><h2>下一批，到桌了</h2></div><p>先看看实物，想尝就设提醒。</p></div>
         <div className="upcoming-grid">
           {preparingCampaigns.map((campaign) => {
             const reminded = remindedCampaigns.includes(campaign.id);
             return (
-              <article className="campaign-card upcoming-card" key={campaign.id} onClick={() => onSelect(campaign)}>
+              <article className="campaign-card upcoming-card food-upcoming-card" key={campaign.id} onClick={() => onSelect(campaign)}>
                 <ProductVisual campaign={campaign} />
-                <div className="upcoming-card-body"><span className="prep-chip">到样确认中</span><h3>{campaign.title}</h3><p>{campaign.sampleStatus?.at(-1)}</p><button disabled={reminded} onClick={(event) => { event.stopPropagation(); onRemind(campaign); }}>{reminded ? <><BadgeCheck size={15} />已提醒</> : <><Bell size={15} />提醒开放</>}</button></div>
+                <div className="upcoming-card-body"><span className="prep-chip">样品已记录</span><h3>{campaign.title}</h3><p>{campaign.sampleStatus?.at(-1)}</p><button disabled={reminded} onClick={(event) => { event.stopPropagation(); onRemind(campaign); }}>{reminded ? <><BadgeCheck size={15} />已提醒</> : <><Bell size={15} />开放提醒</>}</button></div>
               </article>
             );
           })}
         </div>
       </section>
 
-      <section className="report-section page-width">
-        <div className="section-heading compact-heading"><div><span className="eyebrow">TASTE NOTES</span><h2>大家刚试完</h2></div><p>不只给分数，要说清楚为什么。</p></div>
+      <section className="report-section food-report-section page-width">
+        <div className="food-section-heading"><div><span>REAL TASTE NOTES</span><h2>真吃过，才有话说</h2></div><p>不是好评墙，是具体的口感判断。</p></div>
         <div className="report-grid">{trialReports.map((report) => <article className="report-card" key={report.product}><div className="report-person"><span>{report.name.slice(0, 1)}</span><div><b>{report.name}</b><small>{report.product}</small></div><strong><Star size={14} fill="currentColor" />{report.score}</strong></div><blockquote>“{report.quote}”</blockquote><div>{report.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div></article>)}</div>
       </section>
 
-      <section className="how-it-works page-width compact-process">
-        <div><span className="eyebrow">一张试吃护照</span><h2>每一步都清楚，<br />每次认真都有记录。</h2></div>
-        <div className="process-list">{["提交申请", "获得资格并领取", "签收后认真试吃", "反馈通过，护照盖章"].map((text, index) => <div key={text}><span>0{index + 1}</span><p>{text}</p></div>)}</div>
+      <section className="food-promise page-width">
+        <div><span>认真试，放心说</span><h2>免费，<br />不等于随便。</h2><p>一人一份，签收后再计时。吃完把甜度、脆度和真实感受说清楚，就完成一次有价值的试吃。</p></div>
+        <ol>{["申请想吃的", "获得领取资格", "认真试吃", "留下真反馈"].map((text, index) => <li key={text}><span>{index + 1}</span><b>{text}</b></li>)}</ol>
       </section>
     </>
   );
