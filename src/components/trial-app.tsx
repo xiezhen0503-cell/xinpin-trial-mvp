@@ -35,7 +35,9 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { campaigns, initialState, statusLabels } from "@/lib/demo-data";
 import { runTransitions, validateRefund } from "@/lib/workflow";
 import type { AppState, Campaign, Feedback, Participation, ParticipationStatus, Role } from "@/types";
-import openTrialsFoodStrip from "../../public/images/open-trials-food-strip-v2.webp";
+import milkCakeMacro from "../../public/images/milk-cake-macro-v3.webp";
+import osmanthusTeaMacro from "../../public/images/osmanthus-tea-macro-v3.webp";
+import seaweedMacro from "../../public/images/seaweed-macro-v3.webp";
 import upcomingFoodGrid from "../../public/images/upcoming-food-grid-v2.webp";
 
 type ConsumerTab = "discover" | "mine" | "notifications";
@@ -62,8 +64,13 @@ function ProductVisual({ campaign, compact = false }: { campaign: Campaign; comp
     "juicy-beef-dumpling": "upcoming-food upcoming-food-dumpling",
     "melon-craft-beer": "upcoming-food upcoming-food-beer",
   };
+  const openFoodSources: Record<string, typeof seaweedMacro> = {
+    "seaweed-crisp": seaweedMacro,
+    "milk-cake": milkCakeMacro,
+    "osmanthus-tea": osmanthusTeaMacro,
+  };
   const photoClass = foodPhotoClasses[campaign.id];
-  const photoSource = campaign.launchStatus === "preparing" ? upcomingFoodGrid : openTrialsFoodStrip;
+  const photoSource = openFoodSources[campaign.id] ?? upcomingFoodGrid;
   return (
     <div className={`product-visual food-photo-visual ${campaign.category} ${photoClass ?? ""} ${compact ? "compact" : ""}`} style={{ "--accent": campaign.accent, "--food-image": `url(${photoSource.src})` } as React.CSSProperties}>
       <div className="food-photo-layer" role="img" aria-label={`${campaign.title}食物图`} />
@@ -405,6 +412,45 @@ const trialReports = [
   { name: "李知夏", product: "冷泡桂花乌龙", score: "4.7", quote: "桂花香不冲，冰过之后回甘更清楚，适合办公室慢慢喝。", tags: ["清香", "回甘", "低甜"] },
 ];
 
+const appetiteProfiles: Record<string, { sticker: string; hook: string; tags: string[]; score: string; journey: { label: string; title: string; body: string }[]; moments: string[] }> = {
+  "seaweed-crisp": {
+    sticker: "咔嚓！",
+    hook: "薄、脆、海苔香。",
+    tags: ["一掰就响", "少油", "鲜味先到"],
+    score: "4.8",
+    journey: [
+      { label: "第一口", title: "薄脆先响", body: "掰开有碎屑，入口干净，不黏牙。" },
+      { label: "嚼到中段", title: "海苔鲜味上来", body: "烘烤香接住鲜味，油感尽量轻。" },
+      { label: "咽下后", title: "甜味要收住", body: "尾味不抢戏，才会让人想拿第二片。" },
+    ],
+    moments: ["追剧时直接吃", "捏碎拌饭", "下午嘴馋来两片"],
+  },
+  "milk-cake": {
+    sticker: "软乎！",
+    hook: "撕开，奶香就出来。",
+    tags: ["湿润气孔", "轻奶香", "早餐友好"],
+    score: "4.6",
+    journey: [
+      { label: "第一口", title: "表面微微焦香", body: "轻轻一压能回弹，边缘不发干。" },
+      { label: "嚼到中段", title: "奶香慢慢铺开", body: "组织湿润柔软，不靠厚重奶油撑味道。" },
+      { label: "咽下后", title: "甜度留得轻", body: "早餐吃完不腻，配咖啡也不打架。" },
+    ],
+    moments: ["早餐配热牛奶", "微波 8 秒", "下午四点垫一口"],
+  },
+  "osmanthus-tea": {
+    sticker: "冰一下！",
+    hook: "冰凉、桂花香、慢回甘。",
+    tags: ["自然花香", "低甜", "冷泡回甘"],
+    score: "4.7",
+    journey: [
+      { label: "第一口", title: "冰凉先醒口", body: "茶汤清透，入口不粘，不像甜饮料。" },
+      { label: "嚼到中段", title: "桂花香浮上来", body: "花香贴着乌龙，不冲鼻，也不香精感。" },
+      { label: "咽下后", title: "回甘慢慢回来", body: "尾段保留一点茶感，越冰越清楚。" },
+    ],
+    moments: ["冰箱冷藏 4 小时", "午饭后解腻", "办公室慢慢喝"],
+  },
+};
+
 function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: { campaigns: Campaign[]; onSelect: (campaign: Campaign) => void; onRemind: (campaign: Campaign) => void; remindedCampaigns: string[] }) {
   const openCampaigns = items.filter((campaign) => campaign.launchStatus === "open").sort((a, b) => Number(b.trialMode === "free") - Number(a.trialMode === "free"));
   const preparingCampaigns = items.filter((campaign) => campaign.launchStatus === "preparing");
@@ -417,18 +463,18 @@ function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: {
         <article className="food-hero-card" onClick={() => onSelect(featuredCampaign)}>
           <ProductVisual campaign={featuredCampaign} />
           <div className="food-hero-shade" />
-          <div className="food-hero-top"><span>今日试吃桌</span><b>{openCampaigns.length} 款开放 · {freeCount} 款免费</b></div>
+          <div className="food-hero-top"><span>今日试吃桌</span><b>{featuredCampaign.quota} 份口感共创</b></div>
           <div className="food-hero-copy">
-            <span className="free-sticker"><Sparkles size={15} /> 今日免费</span>
-            <h1>海苔脆片，<br /><em>先尝再说。</em></h1>
-            <p>{featuredCampaign.subtitle}</p>
+            <span className="free-sticker"><Sparkles size={15} /> {appetiteProfiles[featuredCampaign.id].sticker} 今日免费</span>
+            <h1>{appetiteProfiles[featuredCampaign.id].hook}</h1>
+            <p>第一口要脆，尾味别太甜。你来决定这片够不够好吃。</p>
             <div className="food-hero-action">
               <button className="food-primary-button" onClick={(event) => { event.stopPropagation(); onSelect(featuredCampaign); }}>免费申请 <ArrowRight size={18} /></button>
               <span><b>{featuredCampaign.quota}</b> 份 · {featuredCampaign.applications.toLocaleString()} 人想试</span>
             </div>
           </div>
         </article>
-        <div className="taste-channel" aria-label="口感频道"><b>口感频道</b>{["酥脆", "奶香", "低甜", "鲜味"].map((taste) => <span key={taste}>#{taste}</span>)}</div>
+        <div className="hero-taste-proof" aria-label="这款海苔的口感线索"><b>第一口</b>{appetiteProfiles[featuredCampaign.id].tags.map((taste) => <span key={taste}>{taste}</span>)}<strong><Star size={13} fill="currentColor" /> {appetiteProfiles[featuredCampaign.id].score} 试吃分</strong></div>
       </section>}
 
       <section className="food-open-section page-width" id="campaigns">
@@ -436,17 +482,24 @@ function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: {
         <div className="food-open-rail">
           {moreOpenCampaigns.map((campaign) => (
             <article className="food-open-card" key={campaign.id} onClick={() => onSelect(campaign)}>
-              <div className="food-open-photo"><ProductVisual campaign={campaign} /><span className={`food-offer-sticker ${campaign.trialMode}`}>{trialOffer(campaign)}</span></div>
+              <div className="food-open-photo"><ProductVisual campaign={campaign} /><span className="bite-sticker">{appetiteProfiles[campaign.id].sticker}</span><span className={`food-offer-sticker ${campaign.trialMode}`}>{trialOffer(campaign)}</span></div>
               <div className="food-open-copy">
                 <div><span>{campaign.brand}</span><small>{campaign.id === "milk-cake" ? "3 天后截止" : campaign.deadline}</small></div>
-                <h3>{campaign.title}</h3>
-                <p>{campaign.subtitle}</p>
-                <footer><span><b>{campaign.quota}</b> 份名额</span><button>去看看 <ChevronRight size={17} /></button></footer>
+                <h3>{appetiteProfiles[campaign.id].hook}</h3>
+                <div className="food-card-tastes">{appetiteProfiles[campaign.id].tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                <div className="food-card-proof"><span><Star size={13} fill="currentColor" /> {appetiteProfiles[campaign.id].score} 试吃分</span><small>{campaign.applications.toLocaleString()} 人想试</small></div>
+                <footer><span><b>{campaign.quota}</b> 份 · {trialOffer(campaign)}</span><button>想尝一口 <ChevronRight size={17} /></button></footer>
               </div>
             </article>
           ))}
         </div>
       </section>
+
+      {featuredCampaign && <section className="sensory-story page-width">
+        <div className="sensory-story-heading"><span>TASTE IT SLOW</span><h2>一口，拆开说。</h2><p>好不好吃，不只一个“好”字。</p></div>
+        <div className="sensory-steps">{appetiteProfiles[featuredCampaign.id].journey.map((step, index) => <article key={step.label}><span>{step.label}</span><strong>{step.title}</strong><p>{step.body}</p><i>{index + 1}</i></article>)}</div>
+        <blockquote><Star size={18} fill="currentColor" />“脆度很干净，海苔香先出来，甜味如果再收一点会更耐吃。”<span>林小雨 · 真实试吃反馈</span></blockquote>
+      </section>}
 
       <section className="upcoming-section food-upcoming-section page-width">
         <div className="food-section-heading"><div><span>NEXT ON TABLE</span><h2>下一批，到桌了</h2></div><p>先看看实物，想尝就设提醒。</p></div>
@@ -482,21 +535,28 @@ function CampaignDetail({ campaign, onBack, onApply, onRemind, alreadyApplied, r
   const primaryLabel = preparing ? reminded ? "已设置开放提醒" : "提醒我开放" : alreadyApplied ? "已申请，可在我的试用查看" : `${trialOffer(campaign)} · 申请试用`;
   const primaryAction = preparing ? onRemind : onApply;
   const primaryDisabled = preparing ? reminded : alreadyApplied;
+  const appetite = appetiteProfiles[campaign.id];
   return (
     <div className="detail-page page-width">
       <button className="back-button" onClick={onBack}><ArrowLeft size={18} /> 返回全部试用</button>
       <div className="detail-hero">
-        <ProductVisual campaign={campaign} />
+        <div className="detail-food-stage"><ProductVisual campaign={campaign} />{appetite && <><span className="detail-bite-sticker">{appetite.sticker}</span><div className="detail-photo-proof"><Star size={14} fill="currentColor" /> {appetite.score} 真实试吃分</div></>}</div>
         <div className="detail-copy">
           <span className="brand-kicker">{campaign.brand} · {campaign.launchStatus === "preparing" ? "新品筹备" : "新品首发"}</span>
           <h1>{campaign.title}</h1>
           <p>{campaign.subtitle}</p>
+          {appetite && <div className="detail-taste-tags">{appetite.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
           {campaign.launchStatus === "preparing" ? <div className="detail-sample-status"><small>拍摄样状态</small>{campaign.sampleStatus?.map((item) => <span key={item}><CheckCircle2 size={16} />{item}</span>)}</div> : <div className="price-block"><span>试用方式 <b>{campaign.trialMode === "free" ? "免费领取" : "低价体验"}</b></span><i /><span>用户支付 <strong>{campaign.trialMode === "free" ? "¥0" : money(campaign.price)}</strong></span></div>}
           <div className="clarity-note"><ShieldCheck size={21} /><p>{campaign.launchStatus === "preparing" ? <><b>当前仅展示筹备进度</b>免费或低价方案、名额和正式规则确认后再开放申请。</> : <><b>{trialOffer(campaign)}</b>审核通过后凭专属资格领取，一人一份；按期完成真实反馈即可。</>}</p></div>
           <button className="primary-button wide desktop-detail-action" onClick={primaryAction} disabled={primaryDisabled}>{preparing ? <Bell size={18} /> : null}{primaryLabel}{!preparing && <ArrowRight size={18} />}</button>
           <small className="deadline-note"><Clock3 size={14} />{campaign.launchStatus === "preparing" ? campaign.deadline : `申请截止：${campaign.deadline} · 共 ${campaign.quota} 个名额`}</small>
         </div>
       </div>
+      {appetite && <section className="detail-sensory page-width">
+        <div className="detail-sensory-copy"><span>这一口，会怎么走</span><h2>{appetite.hook}</h2><p>先别急着给“好吃”两个字。我们更想知道，味道在哪一秒出现，又在哪一秒退下去。</p></div>
+        <div className="detail-sensory-steps">{appetite.journey.map((step) => <article key={step.label}><span>{step.label}</span><h3>{step.title}</h3><p>{step.body}</p></article>)}</div>
+        <aside><span><Leaf size={15} /> 怎么吃更好吃</span>{appetite.moments.map((moment) => <b key={moment}>{moment}</b>)}</aside>
+      </section>}
       <div className="rule-layout">
         <section className="rule-main">
           <span className="eyebrow">申请前，请先看清楚</span><h2>一份试用，要走完这 8 步</h2>
