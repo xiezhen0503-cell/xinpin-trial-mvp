@@ -14,7 +14,7 @@ export const allowedTransitions: Record<ParticipationStatus, ParticipationStatus
   feedback_submitted: ["feedback_revision_required", "feedback_approved"],
   feedback_revision_required: ["feedback_resubmitted", "expired"],
   feedback_resubmitted: ["feedback_revision_required", "feedback_approved"],
-  feedback_approved: ["refund_pending"],
+  feedback_approved: ["refund_pending", "completed"],
   refund_pending: ["refund_processing", "refund_failed"],
   refund_processing: ["refund_success", "refund_failed"],
   refund_success: ["completed"],

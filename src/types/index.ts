@@ -38,6 +38,7 @@ export interface Campaign {
   accent: string;
   requirements: string[];
   launchStatus?: "open" | "preparing";
+  trialMode: "free" | "low_price" | "pending";
   sampleStatus?: string[];
   visualLabel?: string;
 }

@@ -29,6 +29,14 @@ describe("TrialWorkflowService", () => {
     expect(result.events).toHaveLength(2);
   });
 
+  it("反馈通过后可直接完成免费或低价试用", () => {
+    const approvedFeedback = { ...application, status: "feedback_approved" as const };
+    const result = runTransitions(approvedFeedback, [
+      { to: "completed", event: "trial_completed", actor: "system", name: "工作流引擎" },
+    ]);
+    expect(result.participation.status).toBe("completed");
+  });
+
   it("阻止超额和不合格退款", () => {
     expect(validateRefund(application, 39.9, 39.9)).toBe("反馈尚未审核通过");
     expect(validateRefund({ ...application, status: "feedback_approved" }, 40, 39.9)).toBe("退款金额超过可退金额");
