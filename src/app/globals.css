@@ -1001,13 +1001,13 @@ h1, h2, h3, p { margin-top: 0; }
   color: #fff;
 }
 
-.food-hero-top span {
+.food-hero-top > span {
   font-size: 13px;
   font-weight: 900;
   letter-spacing: .12em;
 }
 
-.food-hero-top b {
+.food-hero-top > b {
   padding: 8px 12px;
   border: 1px solid rgba(255, 255, 255, .5);
   border-radius: 999px;
@@ -1457,8 +1457,8 @@ h1, h2, h3, p { margin-top: 0; }
     left: 18px;
   }
 
-  .food-hero-top span { font-size: 11px; }
-  .food-hero-top b { padding: 7px 9px; font-size: 9px; }
+  .food-hero-top > span { font-size: 11px; }
+  .food-hero-top > b { padding: 7px 9px; font-size: 9px; }
 
   .food-hero-copy {
     right: 22px;
@@ -2215,4 +2215,219 @@ h1, h2, h3, p { margin-top: 0; }
   .rule-layout {
     margin-top: 14px;
   }
+}
+
+/* v5 — 尖锋食客品牌锁定 */
+
+.brand-mark {
+  gap: 10px;
+}
+
+.brand-logo-image {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 7px 18px rgba(5, 5, 5, .14);
+}
+
+.brand-mark-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.brand-mark-copy b {
+  color: #201713;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -.05em;
+  line-height: 1.05;
+}
+
+.brand-mark-copy small {
+  color: #8a7464;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+.consumer-header {
+  position: sticky;
+  z-index: 60;
+  top: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(221, 205, 185, .7);
+  background: rgba(255, 247, 232, .9);
+  backdrop-filter: blur(18px);
+}
+
+.backoffice-sidebar .brand-logo-image {
+  border: 1px solid rgba(230, 189, 145, .28);
+  box-shadow: none;
+}
+
+.backoffice-sidebar .brand-mark-copy b,
+.backoffice-mobile-head .brand-mark-copy b {
+  color: #fff;
+}
+
+.backoffice-sidebar .brand-mark-copy small,
+.backoffice-mobile-head .brand-mark-copy small {
+  color: #c8a984;
+}
+
+.hero-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.hero-brand-lockup > img {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(230, 189, 145, .42);
+  border-radius: 9px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+.hero-brand-lockup > span {
+  display: grid;
+  gap: 1px;
+}
+
+.hero-brand-lockup b {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: .02em;
+  line-height: 1.05;
+}
+
+.hero-brand-lockup small {
+  color: #e6bd91;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .14em;
+}
+
+.detail-curator {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid #e7d6c2;
+  border-radius: 13px;
+  background: #fff7e8;
+}
+
+.detail-curator > img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.detail-curator > span {
+  display: grid;
+  gap: 2px;
+}
+
+.detail-curator small {
+  color: #8b705e;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.detail-curator b {
+  color: #201713;
+  font-size: 11px;
+}
+
+.food-promise {
+  margin-bottom: 28px;
+}
+
+.consumer-brand-footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 36px;
+  margin-bottom: 58px;
+  padding: 24px 28px;
+  border-top: 1px solid #dfcfbc;
+  border-bottom: 1px solid #dfcfbc;
+}
+
+.consumer-brand-footer p {
+  margin: 0;
+  color: #5f5046;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.consumer-brand-footer > span {
+  color: #a48d7a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+
+@media (max-width: 720px) {
+  .consumer-header {
+    width: calc(100% - 12px);
+    height: 66px;
+    padding: 0 6px;
+  }
+
+  .consumer-header .brand-logo-image {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+  }
+
+  .consumer-header .brand-mark-copy b {
+    font-size: 16px;
+  }
+
+  .consumer-header .brand-mark-copy small {
+    font-size: 7px;
+  }
+
+  .hero-brand-lockup > img {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .hero-brand-lockup b { font-size: 11px; }
+  .hero-brand-lockup small { font-size: 7px; }
+
+  .detail-curator {
+    margin-bottom: 15px;
+  }
+
+  .food-promise {
+    margin-bottom: 18px;
+  }
+
+  .consumer-brand-footer {
+    width: calc(100% - 24px);
+    grid-template-columns: 1fr auto;
+    gap: 15px;
+    margin-bottom: 92px;
+    padding: 20px 4px;
+  }
+
+  .consumer-brand-footer .brand-logo-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .consumer-brand-footer .brand-mark-copy b { font-size: 16px; }
+  .consumer-brand-footer p { text-align: right; }
+  .consumer-brand-footer > span { grid-column: 1 / -1; text-align: center; }
 }

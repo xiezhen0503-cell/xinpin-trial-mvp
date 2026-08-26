@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   AlertCircle,
   ArrowLeft,
@@ -35,6 +36,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { campaigns, initialState, statusLabels } from "@/lib/demo-data";
 import { runTransitions, validateRefund } from "@/lib/workflow";
 import type { AppState, Campaign, Feedback, Participation, ParticipationStatus, Role } from "@/types";
+import jianfengShikeLogo from "../../public/images/brand/jianfeng-shike-logo.jpg";
 import milkCakeMacro from "../../public/images/milk-cake-macro-v3.webp";
 import osmanthusTeaMacro from "../../public/images/osmanthus-tea-macro-v3.webp";
 import seaweedMacro from "../../public/images/seaweed-macro-v3.webp";
@@ -81,9 +83,9 @@ function ProductVisual({ campaign, compact = false }: { campaign: Campaign; comp
 
 function Logo() {
   return (
-    <div className="brand-mark" aria-label="新品试用">
-      <span><Leaf size={18} strokeWidth={2.5} /></span>
-      <b>新品试用</b>
+    <div className="brand-mark" aria-label="尖锋食客新品试吃局">
+      <Image className="brand-logo-image" src={jianfengShikeLogo} alt="尖锋食客" width={44} height={44} priority />
+      <div className="brand-mark-copy"><b>尖锋食客</b><small>新品试吃局</small></div>
     </div>
   );
 }
@@ -463,7 +465,7 @@ function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: {
         <article className="food-hero-card" onClick={() => onSelect(featuredCampaign)}>
           <ProductVisual campaign={featuredCampaign} />
           <div className="food-hero-shade" />
-          <div className="food-hero-top"><span>今日试吃桌</span><b>{featuredCampaign.quota} 份口感共创</b></div>
+          <div className="food-hero-top"><div className="hero-brand-lockup"><Image src={jianfengShikeLogo} alt="" width={38} height={38} /><span><b>尖锋食客</b><small>今日开吃</small></span></div><b>{featuredCampaign.quota} 份口感共创</b></div>
           <div className="food-hero-copy">
             <span className="free-sticker"><Sparkles size={15} /> {appetiteProfiles[featuredCampaign.id].sticker} 今日免费</span>
             <h1>{appetiteProfiles[featuredCampaign.id].hook}</h1>
@@ -525,6 +527,7 @@ function Discover({ campaigns: items, onSelect, onRemind, remindedCampaigns }: {
         <div><span>认真试，放心说</span><h2>免费，<br />不等于随便。</h2><p>一人一份，签收后再计时。吃完把甜度、脆度和真实感受说清楚，就完成一次有价值的试吃。</p></div>
         <ol>{["申请想吃的", "获得领取资格", "认真试吃", "留下真反馈"].map((text, index) => <li key={text}><span>{index + 1}</span><b>{text}</b></li>)}</ol>
       </section>
+      <footer className="consumer-brand-footer page-width"><Logo /><p>认真吃，具体说。<br />每一条反馈，都为下一版产品负责。</p><span>JIANFENG SHIKE · TRIAL LAB</span></footer>
     </>
   );
 }
@@ -542,6 +545,7 @@ function CampaignDetail({ campaign, onBack, onApply, onRemind, alreadyApplied, r
       <div className="detail-hero">
         <div className="detail-food-stage"><ProductVisual campaign={campaign} />{appetite && <><span className="detail-bite-sticker">{appetite.sticker}</span><div className="detail-photo-proof"><Star size={14} fill="currentColor" /> {appetite.score} 真实试吃分</div></>}</div>
         <div className="detail-copy">
+          <div className="detail-curator"><Image src={jianfengShikeLogo} alt="" width={34} height={34} /><span><small>尖锋食客试吃局</small><b>本期口感共创</b></span></div>
           <span className="brand-kicker">{campaign.brand} · {campaign.launchStatus === "preparing" ? "新品筹备" : "新品首发"}</span>
           <h1>{campaign.title}</h1>
           <p>{campaign.subtitle}</p>
