@@ -53,6 +53,15 @@ export interface Feedback {
   improve: string;
   review: string;
   photos: number;
+  videos?: number;
+  media?: FeedbackMedia[];
+}
+
+export interface FeedbackMedia {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
 }
 
 export interface Participation {

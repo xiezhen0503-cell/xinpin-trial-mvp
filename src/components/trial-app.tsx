@@ -10,13 +10,13 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  CircleUserRound,
   ClipboardCheck,
   Clock3,
   FileText,
   Gauge,
   House,
   Inbox,
+  ImagePlus,
   LayoutDashboard,
   Leaf,
   LogOut,
@@ -28,14 +28,17 @@ import {
   ShoppingBag,
   Sparkles,
   Star,
+  Trash2,
   Truck,
   UsersRound,
+  Video,
   X,
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { campaigns, initialState, statusLabels } from "@/lib/demo-data";
+import { clearFeedbackMedia, listFeedbackMedia, removeFeedbackMedia, saveFeedbackMedia, type StoredFeedbackMedia } from "@/lib/feedback-media";
 import { runTransitions, validateRefund } from "@/lib/workflow";
-import type { AppState, Campaign, Feedback, Participation, ParticipationStatus, Role } from "@/types";
+import type { AppState, Campaign, Feedback, FeedbackMedia, Participation, ParticipationStatus, Role } from "@/types";
 import jianfengShikeLogo from "../../public/images/brand/jianfeng-shike-logo.jpg";
 import milkCakeMacro from "../../public/images/milk-cake-macro-v3.webp";
 import osmanthusTeaMacro from "../../public/images/osmanthus-tea-macro-v3.webp";
@@ -173,6 +176,8 @@ export function TrialApp() {
       const saved = window.localStorage.getItem(storageKey);
       if (saved) setState(JSON.parse(saved) as AppState);
     } catch { /* keep the seeded demo */ }
+    const requestedRole = new URLSearchParams(window.location.search).get("role");
+    if (requestedRole === "merchant" || requestedRole === "admin") setRole(requestedRole);
     setHydrated(true);
   }, []);
 
@@ -346,6 +351,7 @@ export function TrialApp() {
   const resetDemo = () => {
     setState(initialState);
     window.localStorage.removeItem(storageKey);
+    void clearFeedbackMedia();
     notify("演示数据已重置");
   };
 
@@ -353,7 +359,6 @@ export function TrialApp() {
     <div className={`app-shell role-${role}`}>
       {role === "consumer" ? (
         <>
-          <ConsumerHeader role={role} setRole={setRole} unread={state.notifications.filter((item) => !item.read).length} onNotice={() => setConsumerTab("notifications")} />
           <main className="consumer-main">
             {selectedCampaign ? (
               <CampaignDetail campaign={selectedCampaign} onBack={closeCampaign} onApply={() => setApplying(true)} onRemind={() => remindCampaign(selectedCampaign)} alreadyApplied={state.participations.some((item) => item.userId === currentUser && item.campaignId === selectedCampaign.id)} reminded={remindedCampaigns.includes(selectedCampaign.id)} />
@@ -392,19 +397,6 @@ export function TrialApp() {
       )}
       {toast && <Toast onClose={() => setToast(null)}>{toast}</Toast>}
     </div>
-  );
-}
-
-function ConsumerHeader({ role, setRole, unread, onNotice }: { role: Role; setRole: (role: Role) => void; unread: number; onNotice: () => void }) {
-  return (
-    <header className="consumer-header page-width">
-      <Logo />
-      <div className="header-actions">
-        <RoleSwitch role={role} setRole={setRole} />
-        <button className="icon-button notification-button" onClick={onNotice} aria-label="通知"><Bell size={20} />{unread > 0 && <i>{unread}</i>}</button>
-        <button className="avatar-button" aria-label="个人中心">雨</button>
-      </div>
-    </header>
   );
 }
 
@@ -656,22 +648,102 @@ function nextActionText(status: ParticipationStatus) {
   return map[status] || statusLabels[status];
 }
 
+type MediaPreview = FeedbackMedia & { url: string };
+
+const readableSize = (bytes: number) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
 function FeedbackDialog({ participation, campaign, onClose, onSubmit }: { participation: Participation; campaign: Campaign; onClose: () => void; onSubmit: (item: Participation, feedback: Feedback) => void }) {
   const previous = participation.feedback;
   const [scores, setScores] = useState({ overall: previous?.overall || 0, taste: previous?.taste || 0, packaging: previous?.packaging || 0, value: previous?.value || 0 });
   const [repurchase, setRepurchase] = useState<Feedback["repurchase"]>(previous?.repurchase || "可能会");
-  const [photos, setPhotos] = useState(previous?.photos || 0);
+  const [media, setMedia] = useState<MediaPreview[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [mediaError, setMediaError] = useState("");
+  const imageInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
+  const objectUrls = useRef<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listFeedbackMedia(participation.id).then((stored) => {
+      if (cancelled) return;
+      const previews = stored.map((item) => ({ id: item.id, name: item.name, type: item.type, size: item.size, url: URL.createObjectURL(item.blob) }));
+      objectUrls.current.push(...previews.map((item) => item.url));
+      setMedia(previews);
+    }).catch(() => setMediaError("没有读到上次的素材草稿，请重新选择。"));
+    return () => {
+      cancelled = true;
+      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.current = [];
+    };
+  }, [participation.id]);
+
+  const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const imageTypes = ["image/jpeg", "image/png", "image/webp"];
+    const videoTypes = ["video/mp4", "video/webm", "video/quicktime"];
+    const unsupported = files.find((file) => !imageTypes.includes(file.type) && !videoTypes.includes(file.type));
+    const imageTooLarge = files.find((file) => imageTypes.includes(file.type) && file.size > 10 * 1024 * 1024);
+    const videoTooLarge = files.find((file) => videoTypes.includes(file.type) && file.size > 80 * 1024 * 1024);
+    const videoCount = media.filter((item) => item.type.startsWith("video/")).length + files.filter((file) => videoTypes.includes(file.type)).length;
+
+    if (media.length + files.length > 3) return setMediaError("最多上传 3 个素材，请先删除一个再添加。 ");
+    if (unsupported) return setMediaError(`不支持 ${unsupported.name}，请选择 JPG、PNG、WebP、MP4、MOV 或 WebM。`);
+    if (imageTooLarge) return setMediaError(`${imageTooLarge.name} 超过 10 MB，请压缩后再试。`);
+    if (videoTooLarge) return setMediaError(`${videoTooLarge.name} 超过 80 MB，请缩短或压缩后再试。`);
+    if (videoCount > 1) return setMediaError("一次反馈最多上传 1 段视频。 ");
+
+    setUploading(true);
+    setMediaError("");
+    try {
+      const stored = await Promise.all(files.map((file) => saveFeedbackMedia(participation.id, file)));
+      const previews = stored.map((item: StoredFeedbackMedia) => ({ id: item.id, name: item.name, type: item.type, size: item.size, url: URL.createObjectURL(item.blob) }));
+      objectUrls.current.push(...previews.map((item) => item.url));
+      setMedia((current) => [...current, ...previews]);
+    } catch {
+      setMediaError("素材没有保存成功，请检查浏览器存储空间后重试。 ");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeMedia = async (item: MediaPreview) => {
+    try {
+      await removeFeedbackMedia(participation.id, item.id);
+      URL.revokeObjectURL(item.url);
+      objectUrls.current = objectUrls.current.filter((url) => url !== item.url);
+      setMedia((current) => current.filter((entry) => entry.id !== item.id));
+      setMediaError("");
+    } catch {
+      setMediaError("这个素材暂时删不掉，请刷新后再试。 ");
+    }
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    if (Object.values(scores).some((score) => score === 0)) return;
-    onSubmit(participation, { ...scores, repurchase, liked: String(data.get("liked")), improve: String(data.get("improve")), review: String(data.get("review")), photos });
+    if (Object.values(scores).some((score) => score === 0)) return setMediaError("请先完成四项评分。 ");
+    if (!media.length) return setMediaError("请上传至少 1 张真实图片或 1 段试吃视频。 ");
+    const mediaRefs = media.map(({ id, name, type, size }) => ({ id, name, type, size }));
+    onSubmit(participation, {
+      ...scores,
+      repurchase,
+      liked: String(data.get("liked")),
+      improve: String(data.get("improve")),
+      review: String(data.get("review")),
+      photos: media.filter((item) => item.type.startsWith("image/")).length,
+      videos: media.filter((item) => item.type.startsWith("video/")).length,
+      media: mediaRefs,
+    });
   };
   return (
     <div className="dialog-backdrop feedback-backdrop">
-      <div className="dialog feedback-dialog" role="dialog" aria-modal="true">
+      <div className="dialog feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
         <button className="dialog-close" onClick={onClose} aria-label="关闭"><X /></button>
-        <div className="feedback-heading"><ProductVisual campaign={campaign} compact /><div><span className="eyebrow">真实试用反馈</span><h2>{campaign.title}</h2><p>没有标准答案，具体比好听更重要。</p></div></div>
+        <div className="feedback-heading"><ProductVisual campaign={campaign} compact /><div><span className="eyebrow">真实试用反馈</span><h2 id="feedback-title">{campaign.title}</h2><p>没有标准答案，具体比好听更重要。</p></div></div>
         {participation.revisionReason && <div className="revision-banner"><AlertCircle size={20} /><div><b>这份反馈需要补充</b><p>{participation.revisionReason}</p></div></div>}
         <form onSubmit={handleSubmit}>
           <div className="score-grid">
@@ -684,16 +756,52 @@ function FeedbackDialog({ participation, campaign, onClose, onSubmit }: { partic
           <label>最喜欢什么？<textarea name="liked" required defaultValue={previous?.liked} placeholder="具体到一个口感、细节或使用时刻" /></label>
           <label>哪些地方需要改进？<textarea name="improve" required defaultValue={previous?.improve} placeholder="直接说最希望品牌改的一点" /></label>
           <label>真实试用感受<textarea name="review" required minLength={50} defaultValue={previous?.review} placeholder="至少 50 字。可以说场景、第一口感受、和同类产品的差别……" /></label>
-          <div className="photo-upload">
-            <div><b>真实试用图片</b><span>jpg / png / webp，1–3 张</span></div>
-            <button type="button" onClick={() => setPhotos(Math.min(3, photos + 1))}>{photos ? `已选择 ${photos} 张 · 继续添加` : "+ 选择图片（演示）"}</button>
+          <div className="media-upload">
+            <div className="media-upload-heading">
+              <div><span className="media-kicker">FIRST BITE PROOF</span><b>晒出真实试吃现场</b><p>图片最多 3 张，或上传 1 段掰开、倒出、拉丝的视频。</p></div>
+              <strong>{media.length}<small>/3</small></strong>
+            </div>
+            <div className="media-picker-actions">
+              <button type="button" onClick={() => imageInput.current?.click()} disabled={uploading || media.length >= 3}><ImagePlus size={19} /><span>添加图片<small>JPG / PNG / WebP</small></span></button>
+              <button type="button" onClick={() => videoInput.current?.click()} disabled={uploading || media.length >= 3 || media.some((item) => item.type.startsWith("video/"))}><Video size={19} /><span>添加视频<small>MP4 / MOV / WebM</small></span></button>
+              <input ref={imageInput} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleFiles} />
+              <input ref={videoInput} className="visually-hidden" type="file" accept="video/mp4,video/quicktime,video/webm" onChange={handleFiles} />
+            </div>
+            {media.length > 0 && <div className="media-preview-grid">{media.map((item) => <figure key={item.id} className={item.type.startsWith("video/") ? "is-video" : ""}>
+              <div className="media-preview-frame">{item.type.startsWith("video/") ? <video src={item.url} controls playsInline preload="metadata" /> : <Image src={item.url} alt={`已选择的试吃图片 ${item.name}`} fill sizes="180px" unoptimized />}</div>
+              <figcaption><span><b>{item.type.startsWith("video/") ? "试吃视频" : "现场图片"}</b><small>{readableSize(item.size)}</small></span><button type="button" onClick={() => void removeMedia(item)} aria-label={`删除 ${item.name}`}><Trash2 size={15} /></button></figcaption>
+            </figure>)}</div>}
+            {mediaError && <p className="media-error" role="alert"><AlertCircle size={15} />{mediaError}</p>}
+            <div className={`media-save-state ${uploading ? "saving" : ""}`}><CheckCircle2 size={15} /><span>{uploading ? "正在保存原文件…" : media.length ? "原文件已保存在此设备，关闭后再打开也不会丢" : "选择后会保存原文件，不是模拟上传"}</span></div>
           </div>
           <div className="submit-note"><ShieldCheck size={19} /><p>提交后品牌会审核真实性；通过后本次试用完成，并计入你的守约记录。</p></div>
-          <button className="primary-button wide" disabled={!photos || Object.values(scores).some((score) => score === 0)}>提交真实反馈 <ArrowRight size={18} /></button>
+          <button className="primary-button wide" disabled={!media.length || uploading || Object.values(scores).some((score) => score === 0)}>提交真实反馈 <ArrowRight size={18} /></button>
         </form>
       </div>
     </div>
   );
+}
+
+function SubmittedMediaStrip({ participationId, media }: { participationId: string; media?: FeedbackMedia[] }) {
+  const [items, setItems] = useState<MediaPreview[]>([]);
+  useEffect(() => {
+    if (!media?.length) return;
+    let cancelled = false;
+    const urls: string[] = [];
+    listFeedbackMedia(participationId).then((stored) => {
+      if (cancelled) return;
+      const allowed = new Set(media.map((item) => item.id));
+      const previews = stored.filter((item) => allowed.has(item.id)).map((item) => ({ id: item.id, name: item.name, type: item.type, size: item.size, url: URL.createObjectURL(item.blob) }));
+      urls.push(...previews.map((item) => item.url));
+      setItems(previews);
+    }).catch(() => setItems([]));
+    return () => {
+      cancelled = true;
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [participationId, media]);
+  if (!items.length) return null;
+  return <div className="submitted-media-strip">{items.map((item) => <div key={item.id}>{item.type.startsWith("video/") ? <video src={item.url} controls playsInline preload="metadata" /> : <Image src={item.url} alt="用户提交的真实试吃图片" fill sizes="120px" unoptimized />}</div>)}</div>;
 }
 
 function Notifications({ state, setState }: { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }) {
@@ -781,7 +889,7 @@ function ApplicationReview({ items, onApprove, onReject }: { items: Participatio
 
 function FeedbackReview({ pending, onRevision, onApprove }: { pending: Participation[]; onRevision: (item: Participation) => void; onApprove: (item: Participation) => void }) {
   return (
-    <><WorkspaceHeading kicker="FEEDBACK REVIEW" title="反馈审核" /><div className="feedback-workspace"><section className="panel"><div className="panel-heading"><div><small>WAITING FOR REVIEW</small><h2>待审核反馈 · {pending.length}</h2></div></div>{pending.length ? pending.map((item) => { const campaign = campaigns.find((entry) => entry.id === item.campaignId)!; return <article className="feedback-review-card" key={item.id}><div className="feedback-person"><ProductVisual campaign={campaign} compact /><div><b>{item.userName}</b><small>{campaign.title}</small></div><div className="review-score"><Star fill="currentColor" />{item.feedback?.overall || 4}.0</div></div><div className="feedback-excerpt"><b>真实试用感受</b><p>{item.feedback?.review || "反馈内容已提交，等待审核。"}</p><span>{item.feedback?.photos || 1} 张图片 · 提交于今天 11:20</span></div><div className="review-actions"><button className="reject-button" onClick={() => onRevision(item)}><RefreshCcw size={15} />需要补充</button><button className="approve-button" onClick={() => onApprove(item)}><Check size={15} />审核通过并完成试用</button></div></article> }) : <div className="empty-state small"><CheckCircle2 /><p>暂无待审核反馈</p></div>}</section><section className="panel refund-queue"><div className="panel-heading"><div><small>TRIAL OFFER</small><h2>本期试用机制</h2></div><ShieldCheck /></div><div className="refund-row"><div><b>免费试吃</b><small>适合食品小样与首轮口感验证</small></div><strong>¥0</strong><span><ShieldCheck size={14} />一人一份</span></div><div className="refund-row"><div><b>低价体验</b><small>仅用于较高成本样品，降低随手申领</small></div><strong>¥1–9.9</strong><span><ShieldCheck size={14} />不按原价购买</span></div><div className="safety-rules"><b>领取前自动校验</b><span><Check />同活动未重复领取</span><span><Check />资格码有效</span><span><Check />历史完成率达标</span><span><Check />异常账号需人工复核</span></div></section></div></>
+    <><WorkspaceHeading kicker="FEEDBACK REVIEW" title="反馈审核" /><div className="feedback-workspace"><section className="panel"><div className="panel-heading"><div><small>WAITING FOR REVIEW</small><h2>待审核反馈 · {pending.length}</h2></div></div>{pending.length ? pending.map((item) => { const campaign = campaigns.find((entry) => entry.id === item.campaignId)!; return <article className="feedback-review-card" key={item.id}><div className="feedback-person"><ProductVisual campaign={campaign} compact /><div><b>{item.userName}</b><small>{campaign.title}</small></div><div className="review-score"><Star fill="currentColor" />{item.feedback?.overall || 4}.0</div></div><div className="feedback-excerpt"><b>真实试用感受</b><p>{item.feedback?.review || "反馈内容已提交，等待审核。"}</p><span>{item.feedback?.photos || 0} 张图片 · {item.feedback?.videos || 0} 段视频 · 提交于今天 11:20</span></div><SubmittedMediaStrip participationId={item.id} media={item.feedback?.media} /><div className="review-actions"><button className="reject-button" onClick={() => onRevision(item)}><RefreshCcw size={15} />需要补充</button><button className="approve-button" onClick={() => onApprove(item)}><Check size={15} />审核通过并完成试用</button></div></article> }) : <div className="empty-state small"><CheckCircle2 /><p>暂无待审核反馈</p></div>}</section><section className="panel refund-queue"><div className="panel-heading"><div><small>TRIAL OFFER</small><h2>本期试用机制</h2></div><ShieldCheck /></div><div className="refund-row"><div><b>免费试吃</b><small>适合食品小样与首轮口感验证</small></div><strong>¥0</strong><span><ShieldCheck size={14} />一人一份</span></div><div className="refund-row"><div><b>低价体验</b><small>仅用于较高成本样品，降低随手申领</small></div><strong>¥1–9.9</strong><span><ShieldCheck size={14} />不按原价购买</span></div><div className="safety-rules"><b>领取前自动校验</b><span><Check />同活动未重复领取</span><span><Check />资格码有效</span><span><Check />历史完成率达标</span><span><Check />异常账号需人工复核</span></div></section></div></>
   );
 }
 
